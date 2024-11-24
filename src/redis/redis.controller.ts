@@ -18,13 +18,8 @@ export class RedisController {
     }
 
     @Get('store')
-    async getCacheStore(): Promise<string[]> {
-        return await this.redisService.cacheStore();
-    }
-
-    @Post('set-multiple')
-    async setMultipleCachedKeys(@Body() multipleKeys: Array<KeyValueDto>): Promise<void> {
-        await this.redisService.setMultipleKeys(multipleKeys);
+    async getCacheStore(): Promise<Record<string, string>> {
+        return await this.redisService.getAllCache();
     }
 
     @Post('set')

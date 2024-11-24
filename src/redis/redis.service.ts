@@ -1,33 +1,56 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
-import { Cache } from 'cache-manager';
+import Redis from 'ioredis';
+
 
 @Injectable()
 export class RedisService {
-    constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+    constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) {}
 
-    async setKey(key: string, value: string): Promise<void> {
-        await this.cacheManager.set(key, value);
-    }
-
-    async setMultipleKeys(entries: Array<{key: string, value: string}>): Promise<void> {
-        const formattedEntries = entries.map(({key, value}) => [key, value] as [string, unknown]);
-        await this.cacheManager.store.mset(formattedEntries);
+    async setKey(key: string, value: string, tll?: number): Promise<void> {
+        const ttl = tll;
+        if(!ttl) {
+            await this.redisClient.set(key, value);
+        }
+        
+        await this.redisClient.set(key, value, "EX", tll);
     }
 
     async getKey(key: string): Promise<string> {
-        return await this.cacheManager.get(key);
+        return await this.redisClient.get(key);
     }
 
     async deleteKey(key: string): Promise<void> {
-        await this.cacheManager.del(key);
+        await this.redisClient.del(key);
     }
 
     async resetCache(): Promise<void> {
-        await this.cacheManager.reset();
+        await this.redisClient.reset();
     }
 
-    async cacheStore(): Promise<string[]> {
-        return await this.cacheManager.store.keys();
+    async getAllCache(): Promise<Record<string, string>> {
+        const keys = await this.redisClient.keys('*');
+        const cache: Record<string, string> = {};
+
+        if(keys.length === 0 ) {
+            return cache;
+        }
+
+        const pipeline = this.redisClient.pipeline();
+        keys.forEach((key) => pipeline.get(key));
+
+        const results = await pipeline.exec();
+        keys.forEach((key, index) => {
+            const [err, value] = results[index];
+            if(err) {
+                throw new Error(`Error fetching value for key ${key}: ${err.message}`);
+            }
+            if(typeof value === 'string') {
+                cache[key] = value;
+            } else {
+                console.warn(`Unexpected value type for key ${key}`, value);
+            }
+        });
+
+        return cache;
     }
 }

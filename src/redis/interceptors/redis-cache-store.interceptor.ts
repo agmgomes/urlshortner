@@ -1,46 +1,46 @@
-import { CACHE_MANAGER, CacheInterceptor, CacheStore } from "@nestjs/cache-manager";
-import { CallHandler, ExecutionContext, Inject, Injectable, Logger } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
+import { CallHandler, ExecutionContext, Inject, Injectable, Logger, NestInterceptor } from "@nestjs/common";
+import Redis from "ioredis";
 import { Observable, of, tap } from "rxjs";
 
 @Injectable()
-export class RedisCacheStoreInterceptor extends CacheInterceptor {
+export class RedisCacheStoreInterceptor implements NestInterceptor {
     private readonly logger = new Logger(RedisCacheStoreInterceptor.name);
 
-    constructor(@Inject(CACHE_MANAGER) protected cacheManager: CacheStore, protected reflector: Reflector) {
-        super(cacheManager, reflector);
-    }
+    constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) { }
 
     async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
         const request = context.switchToHttp().getRequest();
         
         if (request.method === 'GET') {
-            const key = this.trackBy(context).replace('/', '');
-            const cachedData = await this.cacheManager.get<{url: string, expiresAt: string}>(key);
+            const key =  request.url.replace('/', '');
+            const cachedData = await this.redisClient.get(key);
             
             if (cachedData) {
-                const { expiresAt } = cachedData;
+                const parsedCachedData = JSON.parse(cachedData);
+                const { expiresAt } = parsedCachedData;
                 if (new Date(expiresAt).getTime() > Date.now()) {
-                    return of(cachedData);
+                    return of(parsedCachedData);
                 }
-                await this.cacheManager.del(key);
-                this.logger.log(`Successfully deleted cached URL: ${cachedData.url} for ID: ${key} with expiration at ${cachedData.expiresAt}`);
+                await this.redisClient.del(key);
+                this.logger.log(`Successfully deleted cached URL: ${parsedCachedData.url} for ID: ${key} with expiration at ${parsedCachedData.expiresAt}`);
             }
 
             return next.handle().pipe(
                 tap(async (responseData) => {
-                    const ttl = this.calculateTTL(responseData.expiresAt);
-                    await this.cacheManager.set(key, responseData, ttl);
+                    const ttl = this.calculateTTL(responseData.expiresAt)
+                    await this.redisClient.set(key, JSON.stringify(responseData), "EX", ttl);
                     this.logger.log(`Successfully cached URL: ${responseData.url} for ID: ${key} with expiration at: ${responseData.expiresAt}`);
                 })
             )
         }
+
+        return next.handle()
         
-        return super.intercept(context, next);
     }
 
     private calculateTTL(expiresAt: string): number {
         const expiresIn = new Date(expiresAt).getTime() - Date.now();
-        return expiresIn > 0 ? expiresIn : 0;
+        const ttlInSeconds = expiresIn > 0 ? Math.floor(expiresIn/1000) : 0;
+        return ttlInSeconds;
     }
 }

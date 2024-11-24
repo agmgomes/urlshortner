@@ -1,22 +1,18 @@
-import { CACHE_MANAGER, CacheInterceptor, CacheStore } from "@nestjs/cache-manager";
-import { CallHandler, ExecutionContext, Inject, Injectable, Logger } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
+import { CallHandler, ExecutionContext, Inject, Injectable, Logger, NestInterceptor } from "@nestjs/common";
+import Redis from "ioredis";
 import { Observable, tap } from "rxjs";
 
 @Injectable()
-export class RedisLoggingCacheInterceptor extends CacheInterceptor {
+export class RedisLoggingCacheInterceptor implements NestInterceptor {
     private readonly logger = new Logger(RedisLoggingCacheInterceptor.name);
     
-    constructor(@Inject(CACHE_MANAGER) protected cacheManager: CacheStore, protected reflector: Reflector) {
-        super(cacheManager, reflector);
-    }
-
+    constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) {}
+    
     async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
         const request = context.switchToHttp().getRequest();
-
         if (request.method === 'GET') {
-            const key = this.trackBy(context).replace('/', '');
-            const cachedData = await this.cacheManager.get<{url: string, expiresAt: string}>(key);
+            const key = request.url.replace('/', '');
+            const cachedData = await this.redisClient.get(key);
             if (cachedData) {
                 this.logger.log(`Cache hit for key: ${key}`);
             }
@@ -29,12 +25,14 @@ export class RedisLoggingCacheInterceptor extends CacheInterceptor {
                 .pipe(
                     tap(() => {
                         if (cachedData) {
-                            this.logger.log(`Fetching URL: ${cachedData.url} that expires at: ${cachedData.expiresAt} from key: ${key}`);
+                            const parsedCachedData = JSON.parse(cachedData);
+                            this.logger.log(`Fetching URL: ${parsedCachedData.url} that expires at: ${parsedCachedData.expiresAt} from key: ${key}`);
                         }
                     }),
                 );
         }
 
-        return super.intercept(context, next);
+        return next.handle()
+
     }
 }

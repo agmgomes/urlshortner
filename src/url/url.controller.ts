@@ -22,7 +22,7 @@ export class UrlController {
     @Redirect()
     async redirectToOrigInalUrl(@Param('id') id: string) {
         const originalUrl = await this.urlService.getFullUrl(id);
-        const {fullUrl, expiresAt} = originalUrl;     
+        const { fullUrl, expiresAt}  = originalUrl;     
         return {url: fullUrl, expiresAt};
     }
 }
