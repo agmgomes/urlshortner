@@ -13,6 +13,22 @@ export class Url {
 
     @Prop({type: Date, expires: '0'})
     expiresAt: Date;
+
+    @Prop({
+        type: Object,
+        default: {
+            visits: 0,
+            lastAccessed: null,
+            userAgents: {},
+            dailyVisits: {}
+        },
+    })
+    analytics: {
+        visits: number,
+        lastAccessed?: Date,
+        userAgents?: { [key:string]: number },
+        dailyVisits?: { [date: string]: number }
+    };
 }
 
 export const UrlSchema = SchemaFactory.createForClass(Url);
