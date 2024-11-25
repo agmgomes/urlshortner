@@ -11,22 +11,22 @@ export class RedisLoggingCacheInterceptor implements NestInterceptor {
     async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
         const request = context.switchToHttp().getRequest();
         if (request.method === 'GET') {
-            const key = request.url.replace('/', '');
-            const cachedData = await this.redisClient.get(key);
-            if (cachedData) {
-                this.logger.log(`Cache hit for key: ${key}`);
+            const urlId = request.url.replace('/', '');
+            const urlIdKey = `url:${urlId}`;
+            const cachedData = await this.redisClient.hgetall(urlIdKey);
+            if (!(Object.keys(cachedData).length === 0)) {
+                this.logger.log(`Cache hit for key: ${urlId}`);
             }
             else {
-                this.logger.log(`Cache miss for key: ${key}`);
+                this.logger.log(`Cache miss for key: ${urlId}`);
             }
 
             return next
                 .handle()
                 .pipe(
                     tap(() => {
-                        if (cachedData) {
-                            const parsedCachedData = JSON.parse(cachedData);
-                            this.logger.log(`Fetching URL: ${parsedCachedData.url} that expires at: ${parsedCachedData.expiresAt} from key: ${key}`);
+                        if (!(Object.keys(cachedData).length === 0)) {
+                            this.logger.log(`Fetching URL from cache: ${cachedData.url} that expires at: ${cachedData.expiresAt} from key: ${urlId}`);
                         }
                     }),
                 );

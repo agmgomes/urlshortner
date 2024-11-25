@@ -20,7 +20,7 @@ export class UrlController {
     
     @Get(':id')
     @Redirect()
-    async redirectToOrigInalUrl(@Param('id') id: string) {
+    async redirectToOrigInalUrl(@Param('id') id: string): Promise<{url: string, expiresAt: string}> {
         const originalUrl = await this.urlService.getFullUrl(id);
         const { fullUrl, expiresAt}  = originalUrl;     
         return {url: fullUrl, expiresAt};
