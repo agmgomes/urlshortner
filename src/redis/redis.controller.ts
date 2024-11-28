@@ -1,6 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { RedisService } from './redis.service';
-import { KeyValueDto } from './dto/set-cache.dto';
 
 @Controller('redis')
 export class RedisController {
@@ -18,14 +17,8 @@ export class RedisController {
     }
 
     @Get('store')
-    async getCacheStore(): Promise<Record<string, string>> {
+    async getCacheStore(): Promise<Record<string, Record<string, string>>> {
         return await this.redisService.getAllCache();
-    }
-
-    @Post('set')
-    async setCachedKey(@Body() keyValueDto: KeyValueDto): Promise<void> {
-        const {key, value} = keyValueDto;
-        await this.redisService.setKey(key, value)
     }
 
     @Delete('/:key')

@@ -6,9 +6,11 @@ import { ConfigModule } from '@nestjs/config';
 import { UrlModule } from './url/url.module';
 import { RedisModule } from './redis/redis.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true}), 
+    ScheduleModule.forRoot(),
     UrlModule,
     DatabaseModule,
     RedisModule,

@@ -19,7 +19,7 @@ import { RedisService } from './redis.service';
     },
     RedisService
   ],
-  exports: ['REDIS_CLIENT'],
+  exports: ['REDIS_CLIENT', RedisService],
   controllers: [RedisController]
 })
 export class RedisModule {}
