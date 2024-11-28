@@ -3,13 +3,10 @@ import { UrlService } from './url.service';
 import { ShortenUrlRequest } from './dto/shorten-url.request.dto';
 import { ShortenUrlResponse } from './dto/shorten-url.response.dto';
 import { Request } from 'express';
-import { RedisLoggingCacheInterceptor } from 'src/redis/interceptors/redis-cache-logging.interceptor';
 import { RedisCacheStoreInterceptor } from 'src/redis/interceptors/redis-cache-store.interceptor';
 
 @Controller()
-@UseInterceptors(
-    RedisLoggingCacheInterceptor,
-    RedisCacheStoreInterceptor)
+@UseInterceptors(RedisCacheStoreInterceptor)
 export class UrlController {
     constructor(private readonly urlService: UrlService) {}
 
